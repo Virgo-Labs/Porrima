@@ -13,7 +13,7 @@ from spl.token.instructions import transfer_checked, TransferCheckedParams
 import json
 import logging
 from getpass import getpass
-import base64
+import base58
 import pyotp
 import csv
 import aiohttp
@@ -90,26 +90,34 @@ def switch_wallet(wallet_name):
 async def get_nfts(wallet_address):
     """Fetch NFTs for a wallet address."""
     url = f"https://api.simplehash.com/api/v0/nfts/owners?wallet_addresses={wallet_address}"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                nfts = await response.json()
-                return nfts
-            else:
-                logging.error(f"Failed to fetch NFTs: {response.status}")
-                return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    nfts = await response.json()
+                    return nfts
+                else:
+                    logging.error(f"Failed to fetch NFTs: {response.status}")
+                    return None
+    except Exception as e:
+        logging.error(f"Error fetching NFTs: {e}")
+        return None
 
 async def get_sol_price():
     """Fetch the current SOL price."""
     url = "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                price_data = await response.json()
-                return price_data["solana"]["usd"]
-            else:
-                logging.error(f"Failed to fetch SOL price: {response.status}")
-                return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    price_data = await response.json()
+                    return price_data["solana"]["usd"]
+                else:
+                    logging.error(f"Failed to fetch SOL price: {response.status}")
+                    return None
+    except Exception as e:
+        logging.error(f"Error fetching SOL price: {e}")
+        return None
 
 def export_transaction_history(wallet_address, filename="transactions.csv"):
     """Export transaction history to a CSV file."""
@@ -123,7 +131,7 @@ def export_transaction_history(wallet_address, filename="transactions.csv"):
         logging.info(f"Transaction history exported to {filename}")
 
 # Solana Functions
-def send_solana_transaction(sender_keypair, recipient_address, amount, token_address=None):
+def send_solana_transaction(sender_keypair, recipient_address, amount, token_address=None, decimals=9):
     """Send SOL or SPL tokens on the Solana blockchain."""
     code = input("Enter 2FA code: ")
     if not verify_2fa(code):
@@ -145,7 +153,7 @@ def send_solana_transaction(sender_keypair, recipient_address, amount, token_add
                     dest=recipient_public_key,
                     owner=sender_public_key,
                     amount=amount,
-                    decimals=9  # Adjust based on token decimals
+                    decimals=decimals  # Use provided decimals
                 )
             )
         )
